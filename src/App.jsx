@@ -118,7 +118,7 @@ const SetterFusionLanding = () => {
                             className="relative"
                         >
                             <img
-                                src="../../public/assets_task_01k5m3vmvvevpvr96zt505z0vz_1758390596_img_1-removebg-preview.png"
+                                src="../../public/Adobe Express - file.png"
                                 alt="Assistant IA Bienveillant"
                                 className="w-96 h-96 lg:w-[800px] lg:h-[800px] object-contain drop-shadow-2xl"
                                 style={{
@@ -221,7 +221,7 @@ const SetterFusionLanding = () => {
                                     <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
                                         Assistant Facebook
                                     </h3>
-                                    <p className="text-blue-300 text-sm">Interactions authentiques et bienveillantes</p>
+                                    <p className="text-blue-300 text-sm">Interactions authentiques</p>
                                 </div>
                             </div>
                             <div className="space-y-4">
