@@ -393,7 +393,7 @@ const SetterFusionLanding = () => {
                             className="relative"
                         >
                             <img
-                                src="../../public/image.png"
+                                src="/image.png"
                                 alt="Assistant IA Bienveillant"
                                 className="w-96 h-96 lg:w-[800px] lg:h-[800px] object-contain drop-shadow-2xl"
                                 style={{
