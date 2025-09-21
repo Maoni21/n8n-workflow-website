@@ -1,9 +1,121 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, CheckCircle, Star, Clock, Shield, Zap, Heart, Users } from 'lucide-react';
 
 const SetterFusionLanding = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // États OAuth
+    const [connectedAccounts, setConnectedAccounts] = useState({
+        google: false,
+        facebook: false
+    });
+    const [isConnecting, setIsConnecting] = useState({
+        google: false,
+        facebook: false
+    });
+
+    // Écouter les messages de la popup OAuth
+    useEffect(() => {
+        const handleMessage = (event) => {
+            if (event.origin !== window.location.origin) return;
+
+            const { type, provider, data, error } = event.data;
+
+            if (type === 'OAUTH_SUCCESS') {
+                setConnectedAccounts(prev => ({
+                    ...prev,
+                    [provider]: true
+                }));
+                setIsConnecting(prev => ({
+                    ...prev,
+                    [provider]: false
+                }));
+                console.log(`${provider} connecté avec succès:`, data);
+
+                // Notification de succès
+                alert(`${provider} connecté avec succès !`);
+            } else if (type === 'OAUTH_ERROR') {
+                setIsConnecting(prev => ({
+                    ...prev,
+                    [provider]: false
+                }));
+                console.error(`Erreur ${provider}:`, error);
+                alert(`Erreur lors de la connexion ${provider}: ${error}`);
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
+
+    // Fonction pour initier la connexion OAuth
+    const handleOAuthConnect = (provider) => {
+        setIsConnecting(prev => ({
+            ...prev,
+            [provider]: true
+        }));
+
+        let authUrl = '';
+        const redirectUri = `${window.location.origin}/oauth/callback/${provider}`;
+
+        if (provider === 'google') {
+            const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+            const scopes = [
+                'openid',
+                'email',
+                'profile',
+                'https://www.googleapis.com/auth/gmail.readonly',
+                'https://www.googleapis.com/auth/gmail.send',
+                'https://www.googleapis.com/auth/calendar',
+                'https://www.googleapis.com/auth/drive.readonly'
+            ].join(' ');
+
+            authUrl = `https://accounts.google.com/oauth2/auth?` +
+                `client_id=${clientId}&` +
+                `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+                `scope=${encodeURIComponent(scopes)}&` +
+                `response_type=code&` +
+                `access_type=offline&` +
+                `prompt=consent`;
+
+        } else if (provider === 'facebook') {
+            const appId = import.meta.env.VITE_FACEBOOK_APP_ID;
+            const scopes = [
+                'email',
+                'pages_manage_posts',
+                'pages_read_engagement',
+                'business_management',
+                'instagram_basic',
+                'instagram_manage_comments'
+            ].join(',');
+
+            authUrl = `https://www.facebook.com/v18.0/dialog/oauth?` +
+                `client_id=${appId}&` +
+                `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+                `scope=${encodeURIComponent(scopes)}&` +
+                `response_type=code&` +
+                `state=security_token`;
+        }
+
+        // Ouvrir la popup OAuth
+        const popup = window.open(
+            authUrl,
+            `${provider}_oauth`,
+            'width=500,height=600,scrollbars=yes,resizable=yes'
+        );
+
+        // Vérifier si la popup est fermée manuellement
+        const checkClosed = setInterval(() => {
+            if (popup.closed) {
+                clearInterval(checkClosed);
+                setIsConnecting(prev => ({
+                    ...prev,
+                    [provider]: false
+                }));
+            }
+        }, 1000);
+    };
 
     // Components
     const GlassCard = ({ children, className = "", delay = 0 }) => (
@@ -40,6 +152,169 @@ const SetterFusionLanding = () => {
             </motion.button>
         );
     };
+
+    // Section OAuth
+    const OAuthSection = () => (
+        <section className="py-20 px-6 relative">
+            <div className="max-w-7xl mx-auto">
+                <motion.div
+                    initial={{ opacity: 0, y: 50 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8 }}
+                    className="text-center mb-16"
+                >
+                    <h2 className="text-5xl font-bold mb-6">
+                        <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                            Connectez vos comptes
+                        </span>
+                        <br />
+                        <span className="text-white">en toute sécurité</span>
+                    </h2>
+                    <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                        Autorisez notre assistant IA à agir en votre nom de manière respectueuse et professionnelle.
+                    </p>
+                </motion.div>
+
+                <div className="grid lg:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                    {/* Google OAuth */}
+                    <GlassCard className="border-blue-500/30 hover:border-blue-400/50">
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl flex items-center justify-center">
+                                <span className="text-2xl">🔵</span>
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                                    Google Workspace
+                                </h3>
+                                <p className="text-blue-300 text-sm">Gmail, Calendar, Drive</p>
+                            </div>
+                            {connectedAccounts.google && (
+                                <CheckCircle className="w-8 h-8 text-green-400" />
+                            )}
+                        </div>
+
+                        <div className="space-y-3 mb-6">
+                            <div className="flex items-center gap-2 text-sm text-gray-300">
+                                <CheckCircle className="w-4 h-4 text-blue-400" />
+                                <span>Lecture et envoi d'emails</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-300">
+                                <CheckCircle className="w-4 h-4 text-blue-400" />
+                                <span>Gestion du calendrier</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-300">
+                                <CheckCircle className="w-4 h-4 text-blue-400" />
+                                <span>Accès aux documents Drive</span>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => handleOAuthConnect('google')}
+                            disabled={isConnecting.google || connectedAccounts.google}
+                            className={`w-full py-3 rounded-xl font-semibold transition-all duration-300 ${
+                                connectedAccounts.google
+                                    ? 'bg-green-600 text-white cursor-not-allowed'
+                                    : isConnecting.google
+                                        ? 'bg-blue-600/50 text-white cursor-wait'
+                                        : 'bg-blue-600 hover:bg-blue-500 text-white'
+                            }`}
+                        >
+                            {connectedAccounts.google ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <CheckCircle className="w-5 h-5" />
+                                    Connecté à Google
+                                </span>
+                            ) : isConnecting.google ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                                    Connexion en cours...
+                                </span>
+                            ) : (
+                                'Connecter Google'
+                            )}
+                        </button>
+                    </GlassCard>
+
+                    {/* Facebook OAuth */}
+                    <GlassCard className="border-pink-500/30 hover:border-pink-400/50">
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="w-16 h-16 bg-gradient-to-br from-pink-600 via-purple-600 to-orange-600 rounded-2xl flex items-center justify-center">
+                                <span className="text-2xl">📘</span>
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-2xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
+                                    Facebook Business
+                                </h3>
+                                <p className="text-pink-300 text-sm">Pages + Instagram</p>
+                            </div>
+                            {connectedAccounts.facebook && (
+                                <CheckCircle className="w-8 h-8 text-green-400" />
+                            )}
+                        </div>
+
+                        <div className="space-y-3 mb-6">
+                            <div className="flex items-center gap-2 text-sm text-gray-300">
+                                <CheckCircle className="w-4 h-4 text-pink-400" />
+                                <span>Publication sur les pages</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-300">
+                                <CheckCircle className="w-4 h-4 text-pink-400" />
+                                <span>Gestion des commentaires</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-300">
+                                <CheckCircle className="w-4 h-4 text-pink-400" />
+                                <span>Accès Instagram Business</span>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => handleOAuthConnect('facebook')}
+                            disabled={isConnecting.facebook || connectedAccounts.facebook}
+                            className={`w-full py-3 rounded-xl font-semibold transition-all duration-300 ${
+                                connectedAccounts.facebook
+                                    ? 'bg-green-600 text-white cursor-not-allowed'
+                                    : isConnecting.facebook
+                                        ? 'bg-pink-600/50 text-white cursor-wait'
+                                        : 'bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white'
+                            }`}
+                        >
+                            {connectedAccounts.facebook ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <CheckCircle className="w-5 h-5" />
+                                    Connecté à Facebook
+                                </span>
+                            ) : isConnecting.facebook ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                                    Connexion en cours...
+                                </span>
+                            ) : (
+                                'Connecter Facebook'
+                            )}
+                        </button>
+                    </GlassCard>
+                </div>
+
+                {(connectedAccounts.google || connectedAccounts.facebook) && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-center mt-8"
+                    >
+                        <div className="inline-block bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/30 rounded-xl p-4 mb-6">
+                            <p className="text-green-400 font-semibold">
+                                🎉 Parfait ! Vos comptes sont connectés. Notre assistant IA peut maintenant vous aider.
+                            </p>
+                        </div>
+                        <br />
+                        <LiquidButton onClick={() => setIsModalOpen(true)}>
+                            Continuer vers l'étape suivante
+                        </LiquidButton>
+                    </motion.div>
+                )}
+            </div>
+        </section>
+    );
 
     return (
         <div className="min-h-screen bg-black text-white overflow-hidden relative">
@@ -188,6 +463,9 @@ const SetterFusionLanding = () => {
                     </div>
                 </div>
             </section>
+
+            {/* Section OAuth - NOUVELLE SECTION */}
+            <OAuthSection />
 
             {/* Solution Section */}
             <section className="py-20 px-6 relative">
