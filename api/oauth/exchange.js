@@ -26,13 +26,23 @@ export default async function handler(req, res) {
 
         if (provider === 'google') {
             // Échanger le code Google contre des tokens
-            const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
+            const tokenPayload = new URLSearchParams({
                 client_id: process.env.GOOGLE_CLIENT_ID,
                 client_secret: process.env.GOOGLE_CLIENT_SECRET,
                 code: code,
                 grant_type: 'authorization_code',
                 redirect_uri: redirectUri,
             });
+
+            const tokenResponse = await axios.post(
+                'https://oauth2.googleapis.com/token',
+                tokenPayload.toString(),
+                {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                },
+            );
 
             const { access_token, refresh_token, expires_in } = tokenResponse.data;
 
