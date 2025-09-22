@@ -1,11 +1,7 @@
 // api/oauth/exchange.js
-import axios from 'axios';
-
-import userTokens from '../_lib/tokenStore.js';
-
 export default async function handler(req, res) {
-    // CORS
-    res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
+    // CORS pour smartflow.autos
+    res.setHeader('Access-Control-Allow-Origin', 'https://www.smartflow.autos');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -24,24 +20,17 @@ export default async function handler(req, res) {
         const { provider, code, redirectUri } = req.body;
 
         if (provider === 'google') {
+            // Import axios dynamiquement
+            const axios = (await import('axios')).default;
+
             // Échanger le code Google contre des tokens
-            const tokenPayload = new URLSearchParams({
+            const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
                 client_id: process.env.GOOGLE_CLIENT_ID,
                 client_secret: process.env.GOOGLE_CLIENT_SECRET,
                 code: code,
                 grant_type: 'authorization_code',
                 redirect_uri: redirectUri,
             });
-
-            const tokenResponse = await axios.post(
-                'https://oauth2.googleapis.com/token',
-                tokenPayload.toString(),
-                {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                },
-            );
 
             const { access_token, refresh_token, expires_in } = tokenResponse.data;
 
@@ -54,18 +43,10 @@ export default async function handler(req, res) {
 
             const userData = userResponse.data;
 
-            // Stocker les tokens (temporairement en mémoire)
-            const userId = userData.id;
-            userTokens.set(userId, {
-                provider: 'google',
-                access_token,
-                refresh_token,
-                expires_in,
-                user: userData,
-                connected_at: new Date(),
-            });
+            // TODO: Stocker en Supabase plus tard
+            console.log('Google user connected:', userData.email);
 
-            // Déclencher le workflow n8n si configuré
+            // Déclencher n8n si configuré
             if (process.env.N8N_WEBHOOK_URL) {
                 try {
                     await axios.post(process.env.N8N_WEBHOOK_URL, {
@@ -86,6 +67,8 @@ export default async function handler(req, res) {
             });
 
         } else if (provider === 'facebook') {
+            const axios = (await import('axios')).default;
+
             // Échanger le code Facebook contre des tokens
             const tokenResponse = await axios.get('https://graph.facebook.com/v18.0/oauth/access_token', {
                 params: {
@@ -98,7 +81,7 @@ export default async function handler(req, res) {
 
             const { access_token } = tokenResponse.data;
 
-            // Récupérer les infos utilisateur et pages
+            // Récupérer les infos utilisateur
             const userResponse = await axios.get('https://graph.facebook.com/me', {
                 params: {
                     fields: 'id,name,email',
@@ -108,7 +91,7 @@ export default async function handler(req, res) {
 
             const userData = userResponse.data;
 
-            // Récupérer les pages gérées par l'utilisateur
+            // Récupérer les pages gérées
             const pagesResponse = await axios.get('https://graph.facebook.com/me/accounts', {
                 params: {
                     access_token: access_token,
@@ -117,28 +100,7 @@ export default async function handler(req, res) {
 
             const pagesData = pagesResponse.data;
 
-            // Stocker les tokens
-            const userId = userData.id;
-            userTokens.set(userId, {
-                provider: 'facebook',
-                access_token,
-                user: userData,
-                pages: pagesData.data,
-                connected_at: new Date(),
-            });
-
-            // Déclencher le workflow n8n
-            if (process.env.N8N_WEBHOOK_URL) {
-                try {
-                    await axios.post(process.env.N8N_WEBHOOK_URL, {
-                        event: 'facebook_connected',
-                        user: userData,
-                        pages: pagesData.data,
-                    });
-                } catch (n8nError) {
-                    console.error('N8N webhook failed:', n8nError.message);
-                }
-            }
+            console.log('Facebook user connected:', userData.email);
 
             res.status(200).json({
                 success: true,
