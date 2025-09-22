@@ -1,7 +1,6 @@
 // api/oauth/status.js
 
-// Store temporaire (même que dans exchange.js - en attendant Supabase)
-const userTokens = new Map();
+import userTokens from '../_lib/tokenStore.js';
 
 export default async function handler(req, res) {
     // CORS
