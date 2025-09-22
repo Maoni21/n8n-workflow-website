@@ -1,26 +1,26 @@
-// server/index.js - Créer ce fichier
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
+// api/oauth/exchange.js
 import axios from 'axios';
 
-dotenv.config();
-
-const app = express();
-const PORT = process.env.PORT || 3001;
-
-// Middleware
-app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173', // URL de Vite
-    credentials: true
-}));
-app.use(express.json());
-
-// Store temporaire pour les tokens (en production, utilise Supabase)
+// Store temporaire pour les tokens (en attendant Supabase)
 const userTokens = new Map();
 
-// Endpoint pour échanger les codes OAuth
-app.post('/api/oauth/exchange', async (req, res) => {
+export default async function handler(req, res) {
+    // CORS
+    res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method Not Allowed' });
+        return;
+    }
+
     try {
         const { provider, code, redirectUri } = req.body;
 
@@ -62,14 +62,14 @@ app.post('/api/oauth/exchange', async (req, res) => {
                     await axios.post(process.env.N8N_WEBHOOK_URL, {
                         event: 'google_connected',
                         user: userData,
-                        tokens: { access_token, expires_in }, // Ne pas envoyer le refresh_token
+                        tokens: { access_token, expires_in },
                     });
                 } catch (n8nError) {
                     console.error('N8N webhook failed:', n8nError.message);
                 }
             }
 
-            res.json({
+            res.status(200).json({
                 success: true,
                 provider: 'google',
                 user: userData,
@@ -131,7 +131,7 @@ app.post('/api/oauth/exchange', async (req, res) => {
                 }
             }
 
-            res.json({
+            res.status(200).json({
                 success: true,
                 provider: 'facebook',
                 user: userData,
@@ -150,104 +150,4 @@ app.post('/api/oauth/exchange', async (req, res) => {
             details: error.response?.data || error.message,
         });
     }
-});
-
-// Endpoint pour vérifier le statut des connexions
-app.get('/api/oauth/status', (req, res) => {
-    const { userId } = req.query;
-
-    if (!userId) {
-        return res.status(400).json({ error: 'User ID requis' });
-    }
-
-    const tokens = userTokens.get(userId);
-
-    if (tokens) {
-        res.json({
-            connected: true,
-            provider: tokens.provider,
-            user: tokens.user,
-            connected_at: tokens.connected_at,
-            pages: tokens.pages || null,
-        });
-    } else {
-        res.json({
-            connected: false,
-        });
-    }
-});
-
-// Endpoint pour déconnecter
-app.post('/api/oauth/revoke', async (req, res) => {
-    try {
-        const { userId, provider } = req.body;
-
-        const tokens = userTokens.get(userId);
-
-        if (tokens) {
-            // Révoquer les tokens côté provider
-            if (provider === 'google' && tokens.access_token) {
-                await axios.post(`https://oauth2.googleapis.com/revoke?token=${tokens.access_token}`);
-            } else if (provider === 'facebook' && tokens.access_token) {
-                await axios.delete(`https://graph.facebook.com/me/permissions?access_token=${tokens.access_token}`);
-            }
-
-            // Supprimer de notre stockage
-            userTokens.delete(userId);
-        }
-
-        res.json({ success: true, message: 'Déconnexion réussie' });
-    } catch (error) {
-        console.error('Revoke error:', error.message);
-        res.status(500).json({ error: 'Erreur lors de la déconnexion' });
-    }
-});
-
-// Endpoint pour déclencher n8n manuellement
-app.post('/api/n8n/trigger', async (req, res) => {
-    try {
-        const { userId, workflow } = req.body;
-
-        const tokens = userTokens.get(userId);
-
-        if (!tokens) {
-            return res.status(404).json({ error: 'Utilisateur non connecté' });
-        }
-
-        if (!process.env.N8N_WEBHOOK_URL) {
-            return res.status(500).json({ error: 'N8N non configuré' });
-        }
-
-        await axios.post(process.env.N8N_WEBHOOK_URL, {
-            event: 'manual_trigger',
-            workflow: workflow,
-            user: tokens.user,
-            provider: tokens.provider,
-        });
-
-        res.json({ success: true, message: 'Workflow déclenché' });
-    } catch (error) {
-        console.error('N8N trigger error:', error.message);
-        res.status(500).json({ error: 'Erreur lors du déclenchement' });
-    }
-});
-
-app.listen(PORT, () => {
-    console.log(`🚀 Serveur OAuth démarré sur le port ${PORT}`);
-    console.log(`🔗 Frontend: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
-    console.log(`🔧 N8N Webhook: ${process.env.N8N_WEBHOOK_URL || 'Non configuré'}`);
-});
-
-// .env - Créer ce fichier à la racine
-FRONTEND_URL=http://localhost:5173
-
-# Google OAuth
-GOOGLE_CLIENT_ID=1088698854910-s99n9jvmvjiq015f8mb1nf5l5kjh39dt.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=TON_CLIENT_SECRET_GOOGLE
-
-# Facebook OAuth
-FACEBOOK_APP_ID=TON_APP_ID_FACEBOOK
-FACEBOOK_APP_SECRET=TON_APP_SECRET_FACEBOOK
-
-# Serveur
-PORT=3001
+}

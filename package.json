@@ -1,17 +1,14 @@
-
 {
   "name": "setter-ia-oauth",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "client": "vite",
-    "server": "node server/index.js",
-    "server:dev": "nodemon server/index.js",
+    "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "vercel-build": "npm run build"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -21,9 +18,6 @@
     "react-dom": "^19.1.1",
     "react-intersection-observer": "^9.16.0",
     "react-router-dom": "^6.27.0",
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
     "axios": "^1.6.2"
   },
   "devDependencies": {
@@ -38,9 +32,6 @@
     "globals": "^16.4.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
-    "vite": "^7.1.6",
-    "concurrently": "^8.2.2",
-    "nodemon": "^3.0.2"
+    "vite": "^7.1.6"
   }
 }
-
